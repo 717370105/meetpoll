@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetPoll · 会议时间征集</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0f; --surface:#13131a; --surface2:#1c1c27;
+    --border:#2a2a3a; --border2:#3a3a50;
+    --text:#e8e8f0; --muted:#6b6b85;
+    --accent:#7c6af7; --accent2:#a594f9; --accent-bg:#1a1730;
+    --green:#22d3a0; --green-bg:#0d2620;
+    --red:#f76a6a; --amber:#f7b26a;
+    --display:'Syne',sans-serif; --body:'Noto Sans SC',sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,106,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,106,247,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+  .wrap{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:0 20px 100px}
+
+  /* Header */
+  .header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 0;margin-bottom:48px}
+  .logo{font-family:var(--display);font-size:16px;font-weight:800;letter-spacing:.08em;background:linear-gradient(135deg,var(--accent2),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .logo-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:6px;vertical-align:middle;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+
+  /* Screens */
+  .screen{display:none}
+  .screen.active{display:block;animation:slideIn .3s cubic-bezier(.22,1,.36,1)}
+  @keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+  /* Typography */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .eyebrow::before{content:'';display:inline-block;width:20px;height:1px;background:var(--accent)}
+  h1{font-family:var(--display);font-size:clamp(28px,5vw,42px);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:14px}
+  .subtitle{font-size:14px;color:var(--muted);line-height:1.7;max-width:480px}
+  .page-head{margin-bottom:36px}
+
+  /* Card */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px;transition:border-color .2s}
+  .card:focus-within{border-color:var(--border2)}
+  .card-label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+
+  /* Fields */
+  .field{margin-bottom:16px}.field:last-child{margin-bottom:0}
+  label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.03em}
+  input[type="text"],input[type="date"],input[type="time"],textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;font-family:var(--body);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;color-scheme:dark}
+  input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,247,.15)}
+  input::placeholder{color:var(--muted);opacity:.7}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  /* Slots */
+  .slot-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+  .slot-row{display:grid;grid-template-columns:140px 1fr 1fr 36px;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;transition:border-color .15s}
+  .slot-row:focus-within{border-color:var(--border2)}
+  .slot-row input{background:transparent;border:none;box-shadow:none;padding:4px 2px;font-size:13px;font-family:var(--mono)}
+  .slot-row input:focus{box-shadow:none;border:none}
+  .btn-rm{background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:color .15s,background .15s}
+  .btn-rm:hover{color:var(--red);background:rgba(247,106,106,.1)}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--body);font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:all .15s;letter-spacing:.02em;white-space:nowrap}
+  .btn-ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+  .btn-ghost:hover{color:var(--text);border-color:var(--border2);background:var(--surface2)}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#9b8af8);color:#fff;border-color:transparent;box-shadow:0 4px 20px rgba(124,106,247,.3)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(124,106,247,.4)}
+  .btn-green{background:linear-gradient(135deg,#1fba8e,var(--green));color:#fff;border-color:transparent;box-shadow:0 4px 20px rgba(34,211,160,.25)}
+  .btn-green:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(34,211,160,.35)}
+  .btn-lg{padding:13px 26px;font-size:15px;border-radius:12px}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+  .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:24px}
+
+  /* Share */
+  .share-box{background:linear-gradient(135deg,var(--accent-bg),#0d0f1f);border:1px solid var(--accent);border-radius:16px;padding:24px;margin-bottom:16px}
+  .share-label{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent2);margin-bottom:12px}
+  .url-row{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;margin-bottom:14px}
+  .url-text{font-family:var(--mono);font-size:12px;color:var(--accent2);word-break:break-all;flex:1;line-height:1.5}
+  .copy-btn-sm{background:var(--accent);border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;white-space:nowrap;font-family:var(--body);transition:background .15s;flex-shrink:0}
+  .copy-btn-sm:hover{background:#9b8af8}
+  .copy-btn-sm.ok{background:var(--green)}
+  .msg-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;font-family:var(--body);margin-bottom:10px;max-height:200px;overflow-y:auto}
+
+  /* Vote */
+  .vote-meta{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:20px}
+  .vm-title{font-size:18px;font-weight:700;font-family:var(--display);margin-bottom:4px}
+  .vm-sub{font-size:12px;color:var(--muted)}
+  .vote-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+  .vote-item{display:flex;align-items:center;gap:16px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .15s;user-select:none}
+  .vote-item:hover{border-color:var(--border2);background:var(--surface2)}
+  .vote-item.sel{border-color:var(--green);background:var(--green-bg)}
+  .vote-check{width:22px;height:22px;border:2px solid var(--border2);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:all .15s}
+  .vote-item.sel .vote-check{background:var(--green);border-color:var(--green);color:#fff}
+  .vote-date{font-size:14px;font-weight:600}
+  .vote-time{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
+  /* Results */
+  .best-card{background:linear-gradient(135deg,var(--green-bg),#0a1f1a);border:1px solid var(--green);border-radius:16px;padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;gap:16px}
+  .best-icon{font-size:28px;flex-shrink:0}
+  .best-sub{font-size:11px;color:var(--green);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+  .best-time{font-size:18px;font-weight:700;font-family:var(--display)}
+  .best-count{font-size:12px;color:var(--muted);margin-top:2px}
+  .res-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+  .res-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .res-item.top{border-color:#2a4a3a}
+  .res-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px}
+  .res-date{font-size:14px;font-weight:600}
+  .res-time-lbl{font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+  .res-pct{font-size:13px;font-weight:700;color:var(--muted)}
+  .res-item.top .res-pct{color:var(--green)}
+  .bar-track{height:4px;background:var(--surface2)}
+  .bar-fill{height:100%;background:var(--border2);transition:width .5s ease;border-radius:2px}
+  .res-item.top .bar-fill{background:var(--green)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px 14px}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--muted)}
+  .res-item.top .chip{background:rgba(34,211,160,.1);border-color:rgba(34,211,160,.3);color:var(--green)}
+  .no-chips{padding:10px 18px 14px;font-size:12px;color:var(--muted)}
+
+  /* AI */
+  .ai-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .ai-header{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2)}
+  .ai-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite;flex-shrink:0}
+  .ai-title{font-size:13px;font-weight:600;color:var(--accent2)}
+  .ai-body{padding:18px 20px}
+  .ai-content{font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap}
+  .ai-loading{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Home features */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+  .feat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .feat-icon{font-size:20px;margin-bottom:8px}
+  .feat-title{font-size:12px;font-weight:700;margin-bottom:4px;letter-spacing:.02em}
+  .feat-desc{font-size:11px;color:var(--muted);line-height:1.6}
+  .p-info{font-size:13px;color:var(--muted);line-height:1.8}
+
+  /* Toast */
+  #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);color:var(--text);border:1px solid var(--border2);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .25s;z-index:9999;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.err{border-color:var(--red);color:var(--red)}
+
+  /* Loading overlay */
+  .loading-overlay{position:fixed;inset:0;background:rgba(10,10,15,.7);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .loading-overlay.show{display:flex}
+  .loading-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 40px;text-align:center}
+  .loading-box .spinner{width:28px;height:28px;margin:0 auto 14px}
+  .loading-box p{font-size:14px;color:var(--muted)}
+
+  .confirmed-hero{text-align:center;padding:60px 0 40px}
+  .confirmed-icon{font-size:56px;margin-bottom:20px}
+
+  @media(max-width:520px){
+    .features{grid-template-columns:1fr 1fr}
+    .slot-row{grid-template-columns:1fr 1fr 36px}
+    .row2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loading-msg">处理中…</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="header">
+    <div class="logo">MeetPoll<span class="logo-dot"></span></div>
+    <button class="btn btn-ghost" style="padding:8px 14px;font-size:12px" onclick="goHome()">首页</button>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div style="padding:60px 0 40px">
+      <div class="eyebrow">告别多次 @ 的烦恼</div>
+      <h1>会议时间<br>一次搞定</h1>
+      <p class="subtitle" style="margin-bottom:32px">发起人设置候选时段，生成链接发群里，所有人点开选空闲，结果实时汇总 + AI 推荐最优时间。</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:48px">
+        <button class="btn btn-primary btn-lg" onclick="showScreen('screen-create')">＋ 发起征集</button>
+        <button class="btn btn-ghost btn-lg" onclick="promptJoin()">→ 我来填空闲</button>
+      </div>
+      <div class="features">
+        <div class="feat"><div class="feat-icon">📋</div><div class="feat-title">一次设置</div><div class="feat-desc">填写主题和多个候选时间段</div></div>
+        <div class="feat"><div class="feat-icon">🔗</div><div class="feat-title">发一次链接</div><div class="feat-desc">只需 @全员一次，无需按时间段反复 @</div></div>
+        <div class="feat"><div class="feat-icon">🤖</div><div class="feat-title">AI 推荐</div><div class="feat-desc">自动分析结果，给出最佳时间建议</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE -->
+  <div id="screen-create" class="screen">
+    <div class="page-head">
+      <div class="eyebrow">Step 1</div>
+      <h1>创建征集</h1>
+      <p class="subtitle">填写会议信息和候选时间段</p>
+    </div>
+    <div class="card">
+      <div class="card-label">基本信息</div>
+      <div class="field"><label>会议主题 *</label><input type="text" id="c-title" placeholder="例：Q2 产品复盘会" maxlength="60"></div>
+      <div class="row2">
+        <div class="field"><label>发起人姓名</label><input type="text" id="c-org" placeholder="你的名字"></div>
+        <div class="field"><label>预计时长</label><input type="text" id="c-dur" placeholder="例：60 分钟"></div>
+      </div>
+      <div class="field" style="margin-bottom:0"><label>备注（可选）</label><input type="text" id="c-note" placeholder="例：线上会议，请提前测试网络"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">候选时间段</div>
+      <div class="slot-list" id="slot-list"></div>
+      <button class="btn btn-ghost" onclick="addSlot()">＋ 添加时间段</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="showScreen('screen-home')">← 返回</button>
+      <button class="btn btn-primary btn-lg" onclick="createPoll()">生成征集 →</button>
+    </div>
+  </div>
+
+  <!-- SHARE -->
+  <div id="screen-share" class="screen">
+    <div class="page-head">
+      <div class="eyebrow">Step 2 · 分享</div>
+      <h1>征集已就绪</h1>
+      <p class="subtitle">把链接发到群里，<strong style="color:var(--text)">@全员一次</strong>，让大家点链接选时间</p>
+    </div>
+    <div class="share-box">
+      <div class="share-label">参与链接（发给所有人）</div>
+      <div class="url-row">
+        <div class="url-text" id="share-url">—</div>
+        <button class="copy-btn-sm" id="copy-url-btn" onclick="copyUrl()">复制</button>
+      </div>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="copyMsg()">📋 复制群消息文案</button>
+    </div>
+    <div class="card">
+      <div class="card-label">群消息预览</div>
+      <div class="msg-box" id="msg-preview">—</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="showScreen('screen-create')">← 修改</button>
+      <button class="btn btn-green btn-lg" onclick="openResults(window._pid)">查看实时结果 →</button>
+    </div>
+  </div>
+
+  <!-- VOTE -->
+  <div id="screen-vote" class="screen">
+    <div class="page-head">
+      <div class="eyebrow">填写空闲</div>
+      <h1>选择有空时间</h1>
+    </div>
+    <div class="vote-meta" id="vote-meta"></div>
+    <div class="field" style="margin-bottom:20px"><label>你的姓名 *</label><input type="text" id="voter-name" placeholder="请输入姓名" maxlength="20"></div>
+    <div class="card-label" style="margin-bottom:12px">勾选你 <strong style="color:var(--text)">有空</strong> 的时段（可多选）</div>
+    <div class="vote-grid" id="vote-grid"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="submitVote()">提交我的选择 ✓</button>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="screen-results" class="screen">
+    <div class="page-head">
+      <div class="eyebrow">汇总结果</div>
+      <h1 id="res-title">征集结果</h1>
+    </div>
+    <div id="best-card"></div>
+    <div class="res-list" id="res-list"></div>
+    <div class="ai-panel">
+      <div class="ai-header"><div class="ai-dot"></div><div class="ai-title">AI 会议时间建议</div></div>
+      <div class="ai-body">
+        <div class="ai-loading" id="ai-loading" style="display:none"><div class="spinner"></div><span>正在分析最优时间…</span></div>
+        <div class="ai-content" id="ai-content">点击下方「AI 分析」获取智能推荐</div>
+      </div>
+    </div>
+    <div class="card"><div class="card-label">参与情况</div><div class="p-info" id="p-info">—</div></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="showScreen('screen-share')">← 分享页</button>
+      <button class="btn btn-ghost" onclick="refreshResults()">↻ 刷新</button>
+      <button class="btn btn-primary" onclick="runAI()" id="ai-btn">🤖 AI 分析</button>
+      <button class="btn btn-green" onclick="confirmBest()">确认会议时间 ✓</button>
+    </div>
+  </div>
+
+  <!-- CONFIRMED -->
+  <div id="screen-confirmed" class="screen">
+    <div class="confirmed-hero">
+      <div class="confirmed-icon">✅</div>
+      <div class="eyebrow" style="justify-content:center">会议已确认</div>
+      <h1 id="conf-time" style="font-size:22px;margin-bottom:16px"></h1>
+      <p class="subtitle" style="margin:0 auto 32px;text-align:center" id="conf-sub"></p>
+      <button class="btn btn-ghost" onclick="goHome()">← 返回首页</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════
+let _pid   = null;   // 当前 poll id
+let _slots = [];     // 当前 poll 的 slots（含 id）
+let _votes = [];     // 当前 poll 的 votes
+
+// ═══════════════════════════════════════════════════════
+// Boot
+// ═══════════════════════════════════════════════════════
+for (let i = 0; i < 3; i++) addSlot();
+window.addEventListener('hashchange', routeHash);
+routeHash();
+
+function routeHash() {
+  const h = location.hash.replace('#', '');
+  if (h.startsWith('vote-'))    loadAndVote(h.replace('vote-', ''));
+  else if (h.startsWith('res-')) { _pid = h.replace('res-', ''); openResults(_pid); }
+}
+
+// ═══════════════════════════════════════════════════════
+// Screen
+// ═══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goHome() { location.hash = ''; showScreen('screen-home'); }
+
+// ═══════════════════════════════════════════════════════
+// Loading overlay
+// ═══════════════════════════════════════════════════════
+function showLoading(msg = '处理中…') {
+  document.getElementById('loading-msg').textContent = msg;
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════
+// Slot builder (Create screen)
+// ═══════════════════════════════════════════════════════
+function addSlot() {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const pad = n => String(n).padStart(2, '0');
+  const dv  = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const row = document.createElement('div');
+  row.className = 'slot-row';
+  row.innerHTML = `
+    <input type="date" value="${dv}">
+    <input type="time" value="10:00">
+    <input type="time" value="11:00">
+    <button class="btn-rm" onclick="rmSlot(this)">×</button>`;
+  document.getElementById('slot-list').appendChild(row);
+}
+function rmSlot(btn) {
+  if (document.querySelectorAll('.slot-row').length > 1) btn.closest('.slot-row').remove();
+  else toast('至少保留一个时间段', true);
+}
+
+// ═══════════════════════════════════════════════════════
+// Create poll  →  POST /api/polls
+// ═══════════════════════════════════════════════════════
+async function createPoll() {
+  const title = document.getElementById('c-title').value.trim();
+  if (!title) { toast('请填写会议主题', true); return; }
+
+  const slots = [];
+  document.querySelectorAll('.slot-row').forEach(r => {
+    const [d, s, e] = r.querySelectorAll('input');
+    if (d.value && s.value && e.value)
+      slots.push({ date: d.value, start: s.value, end: e.value });
+  });
+  if (!slots.length) { toast('请完整填写时间段', true); return; }
+
+  showLoading('创建征集…');
+  try {
+    const res  = await api('POST', '/api/polls', {
+      title,
+      organizer: document.getElementById('c-org').value.trim(),
+      duration:  document.getElementById('c-dur').value.trim(),
+      note:      document.getElementById('c-note').value.trim(),
+      slots
+    });
+    _pid   = res.poll.id;
+    _slots = res.slots;
+    buildShareScreen(res);
+    showScreen('screen-share');
+  } finally { hideLoading(); }
+}
+
+function buildShareScreen(res) {
+  const base = location.origin + location.pathname;
+  const url  = base + '#vote-' + res.poll.id;
+  document.getElementById('share-url').textContent = url;
+  window._shareUrl = url;
+
+  const p     = res.poll;
+  const lines = res.slots.map((s,i) =>
+    `  ${i+1}. ${fmtDate(s.date)} ${s.start_time}–${s.end_time}`).join('\n');
+  const msg = `【会议时间征集】${p.title}\n` +
+    `发起人：${p.organizer} | 时长：${p.duration}\n` +
+    (p.note ? `备注：${p.note}\n` : '') +
+    `\n请点击链接选择你有空的时间 👇\n${url}\n\n` +
+    `候选时间段：\n${lines}\n\n⏰ 请在今日内填写，谢谢！`;
+  document.getElementById('msg-preview').textContent = msg;
+  window._shareMsg = msg;
+}
+
+// ═══════════════════════════════════════════════════════
+// Copy helpers
+// ═══════════════════════════════════════════════════════
+function copyUrl() {
+  doCopy(window._shareUrl || '');
+  const btn = document.getElementById('copy-url-btn');
+  btn.textContent = '✓ 已复制'; btn.classList.add('ok');
+  setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('ok'); }, 2000);
+}
+function copyMsg() { doCopy(window._shareMsg || ''); toast('群消息已复制，粘贴到群里发送即可'); }
+function doCopy(text) {
+  navigator.clipboard?.writeText(text).catch(() => {
+    const t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t); t.select();
+    document.execCommand('copy'); document.body.removeChild(t);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// Vote  →  GET /api/polls/:id  +  POST /api/polls/:id/votes
+// ═══════════════════════════════════════════════════════
+function promptJoin() {
+  const code = prompt('请输入链接 # 后的内容（如 vote-abc123）：');
+  if (!code) return;
+  loadAndVote(code.replace(/^(vote-|#vote-)/,''));
+}
+
+async function loadAndVote(id) {
+  showLoading('加载征集…');
+  try {
+    const res = await api('GET', `/api/polls/${id}`);
+    _pid   = id;
+    _slots = res.slots;
+
+    document.getElementById('vote-meta').innerHTML =
+      `<div class="vm-title">${res.poll.title}</div>` +
+      `<div class="vm-sub">发起人：${res.poll.organizer} · 时长：${res.poll.duration}${res.poll.note ? ' · '+res.poll.note : ''}</div>`;
+
+    const grid = document.getElementById('vote-grid');
+    grid.innerHTML = '';
+    res.slots.forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'vote-item';
+      el.dataset.sid = s.id;
+      el.innerHTML = `
+        <div class="vote-check">✓</div>
+        <div>
+          <div class="vote-date">${fmtDate(s.date)}</div>
+          <div class="vote-time">${s.start_time} – ${s.end_time}</div>
+        </div>`;
+      el.onclick = () => el.classList.toggle('sel');
+      grid.appendChild(el);
+    });
+
+    document.getElementById('voter-name').value = '';
+    showScreen('screen-vote');
+  } catch(e) {
+    toast('未找到该征集，请检查链接', true);
+  } finally { hideLoading(); }
+}
+
+async function submitVote() {
+  const name = document.getElementById('voter-name').value.trim();
+  if (!name) { toast('请输入姓名', true); return; }
+
+  const slot_ids = [...document.querySelectorAll('.vote-item.sel')]
+    .map(el => parseInt(el.dataset.sid));
+  if (!slot_ids.length) { toast('请至少选择一个时间段', true); return; }
+
+  showLoading('提交中…');
+  try {
+    await api('POST', `/api/polls/${_pid}/votes`, { voter_name: name, slot_ids });
+    toast(`✓ ${name}，已记录你的选择！`);
+    setTimeout(() => openResults(_pid), 600);
+  } finally { hideLoading(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// Results  →  GET /api/polls/:id
+// ═══════════════════════════════════════════════════════
+async function openResults(id) {
+  showLoading('加载结果…');
+  try {
+    const res = await api('GET', `/api/polls/${id}`);
+    _pid   = id;
+    _slots = res.slots;
+    _votes = res.votes;
+    renderResults(res);
+    showScreen('screen-results');
+    document.getElementById('ai-content').textContent = '点击下方「AI 分析」获取智能推荐';
+  } finally { hideLoading(); }
+}
+
+async function refreshResults() { await openResults(_pid); }
+
+function renderResults(res) {
+  const { poll, slots, votes, tally } = res;
+  document.getElementById('res-title').textContent = poll.title;
+
+  const maxN = Math.max(...slots.map(s => (tally[s.id] || []).length), 0);
+
+  // Best card
+  const bc = document.getElementById('best-card');
+  if (votes.length && maxN > 0) {
+    const bs = slots.find(s => (tally[s.id] || []).length === maxN);
+    bc.innerHTML = `<div class="best-card">
+      <div class="best-icon">🏆</div>
+      <div>
+        <div class="best-sub">当前最佳时间</div>
+        <div class="best-time">${fmtDate(bs.date)} ${bs.start_time}–${bs.end_time}</div>
+        <div class="best-count">${maxN} 人有空 · 共 ${votes.length} 人参与</div>
+      </div>
+    </div>`;
+  } else { bc.innerHTML = ''; }
+
+  // Sorted slots
+  const sorted = [...slots].sort((a,b) =>
+    (tally[b.id]||[]).length - (tally[a.id]||[]).length);
+
+  const rl = document.getElementById('res-list');
+  rl.innerHTML = '';
+  sorted.forEach(s => {
+    const names = tally[s.id] || [];
+    const pct   = votes.length ? Math.round(names.length / votes.length * 100) : 0;
+    const isTop = names.length === maxN && maxN > 0;
+    const el    = document.createElement('div');
+    el.className = 'res-item' + (isTop ? ' top' : '');
+    el.innerHTML = `
+      <div class="res-head">
+        <div>
+          <div class="res-date">${fmtDate(s.date)}</div>
+          <div class="res-time-lbl">${s.start_time} – ${s.end_time}</div>
+        </div>
+        <div class="res-pct">${names.length} / ${votes.length || 0}</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      ${names.length
+        ? `<div class="chips">${names.map(n=>`<span class="chip">${n}</span>`).join('')}</div>`
+        : `<div class="no-chips">暂无人选择</div>`}`;
+    rl.appendChild(el);
+  });
+
+  document.getElementById('p-info').innerHTML = votes.length
+    ? `已有 <strong style="color:var(--text)">${votes.length}</strong> 人参与：${votes.map(v=>v.voter_name).join('、')}`
+    : '暂无人参与，分享链接后等待大家填写';
+}
+
+// ═══════════════════════════════════════════════════════
+// AI Analysis（直接调 Anthropic API，需 CORS 代理或服务端转发）
+// ═══════════════════════════════════════════════════════
+async function runAI() {
+  if (!_votes.length) { toast('暂无人填写，无法分析', true); return; }
+
+  document.getElementById('ai-btn').disabled = true;
+  document.getElementById('ai-loading').style.display = 'flex';
+  document.getElementById('ai-content').textContent = '';
+
+  // Build tally summary from current state
+  const tallyMap = {};
+  _slots.forEach(s => { tallyMap[s.id] = []; });
+  _votes.forEach(v => v.slot_ids.forEach(sid => { if(tallyMap[sid]) tallyMap[sid].push(v.voter_name); }));
+
+  const summary = _slots.map(s =>
+    `${fmtDate(s.date)} ${s.start_time}–${s.end_time}：${(tallyMap[s.id]||[]).length}人有空（${(tallyMap[s.id]||[]).join('、')||'无'}）`
+  ).join('\n');
+
+  const prompt = `以下是会议「${_slots[0]?.poll_id || ''}」的时间征集结果，请给出最优会议时间建议：\n\n各时段有空情况：\n${summary}\n\n共 ${_votes.length} 人参与。请给出推荐时间和简短理由，不超过120字。`;
+
+  try {
+    const res = await fetch('/api/ai-suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    document.getElementById('ai-content').textContent =
+      data.suggestion || '分析完成，请查看结果。';
+  } catch {
+    document.getElementById('ai-content').textContent =
+      '⚠️ AI 分析暂时不可用。根据数据，票数最多的时间段为最佳选择。';
+  }
+
+  document.getElementById('ai-loading').style.display = 'none';
+  document.getElementById('ai-btn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════
+// Confirm best time
+// ═══════════════════════════════════════════════════════
+function confirmBest() {
+  if (!_slots.length) return;
+  const tallyMap = {};
+  _slots.forEach(s => { tallyMap[s.id] = 0; });
+  _votes.forEach(v => v.slot_ids.forEach(sid => { if(tallyMap[sid]!==undefined) tallyMap[sid]++; }));
+  const best = _slots.reduce((a,b) => (tallyMap[b.id]||0) > (tallyMap[a.id]||0) ? b : a);
+  document.getElementById('conf-time').textContent =
+    `${fmtDate(best.date)} ${best.start_time}–${best.end_time}`;
+  document.getElementById('conf-sub').textContent =
+    `${tallyMap[best.id]} 人确认有空`;
+  showScreen('screen-confirmed');
+}
+
+// ═══════════════════════════════════════════════════════
+// HTTP helper
+// ═══════════════════════════════════════════════════════
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res  = await fetch(path, opts);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.message || '请求失败');
+  return data.data;
+}
+
+// ═══════════════════════════════════════════════════════
+// Utils
+// ═══════════════════════════════════════════════════════
+function fmtDate(str) {
+  if (!str) return '';
+  const d    = new Date(str + 'T12:00:00');
+  const days = ['日','一','二','三','四','五','六'];
+  return `${d.getMonth()+1}月${d.getDate()}日（周${days[d.getDay()]}）`;
+}
+
+let _tt;
+function toast(msg, err = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('err', err);
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 2400);
+}
+</script>
+</body>
+</html>
